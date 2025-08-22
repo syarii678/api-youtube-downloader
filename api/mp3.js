@@ -1,26 +1,37 @@
 import { yt, extractYouTubeId } from '../lib/downloader.js';
 
 export default async function handler(req, res) {
-    // Atur header CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'GET') return res.status(405).json({ success: false, message: 'Method Not Allowed' });
 
-    const { url, quality = '128kbps' } = req.query;
+    // Langkah Diagnosis: Log URL mentah yang diterima Vercel
+    console.log(`[MP3] Raw request URL received: ${req.url}`);
+
+    let { url, quality = '128kbps' } = req.query;
 
     if (!url) {
         return res.status(400).json({ success: false, message: 'Parameter "url" wajib diisi.' });
     }
 
-    // Validasi bahwa quality adalah format audio
+    // Langkah Perbaikan: Lakukan decode pada URL untuk mengatasi masalah encoding
+    try {
+        url = decodeURIComponent(url);
+    } catch (e) {
+        console.error("Gagal melakukan decode pada URL:", e);
+        return res.status(400).json({ success: false, message: 'Parameter URL tidak ter-encode dengan benar.' });
+    }
+
     if (!/kbps/.test(quality)) {
         return res.status(400).json({ success: false, message: `Format quality "${quality}" tidak valid untuk MP3. Gunakan: 64kbps, 128kbps, dll.` });
     }
 
     const videoId = extractYouTubeId(url);
     if (!videoId) {
+        // Jika masih gagal, log URL yang sudah di-decode untuk analisis
+        console.error(`[MP3] Gagal extract ID dari URL yang sudah di-decode: ${url}`);
         return res.status(400).json({ success: false, message: 'URL YouTube tidak valid atau format tidak didukung.' });
     }
     
